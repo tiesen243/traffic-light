@@ -47,26 +47,26 @@ void loop() {
       Serial.println(yellowState == HIGH ? "O" : "Y");
       ovr_delay(DURATIONS[3]);
     } else {
-      if (digitalRead(LEDS[0]) == HIGH) {
-        digitalWrite(LEDS[0], LOW);
-        digitalWrite(LEDS[1], HIGH);
-        Serial.println(SEND_MSG[4]);
-        ovr_delay(DURATIONS[1]);
-      } else if (digitalRead(LEDS[1]) == HIGH) {
-        digitalWrite(LEDS[1], LOW);
-        digitalWrite(LEDS[2], HIGH);
-        Serial.println(SEND_MSG[5]);
-        ovr_delay(DURATIONS[2]);
-      } else if (digitalRead(LEDS[2]) == HIGH) {
-        digitalWrite(LEDS[2], LOW);
-        digitalWrite(LEDS[0], HIGH);
-        Serial.println(SEND_MSG[3]);
-        ovr_delay(DURATIONS[0]);
-      } else {
-        digitalWrite(LEDS[0], HIGH);
-        Serial.println(SEND_MSG[2]);
-        ovr_delay(DURATIONS[0]);
-      }
+      int activeLedIndex = -1;
+      for (int i = 0; i < 3; i++)
+        if (digitalRead(LEDS[i]) == HIGH) {
+          activeLedIndex = i;
+          break;
+        }
+
+      int nextLedIndex = (activeLedIndex == -1) ? 0 : (activeLedIndex + 1) % 3;
+
+      if (activeLedIndex != -1)
+        digitalWrite(LEDS[activeLedIndex], LOW);
+
+      digitalWrite(LEDS[nextLedIndex], HIGH);
+
+      int msgIndex = nextLedIndex + 3;
+      if (activeLedIndex == -1)
+        msgIndex = 2;
+
+      Serial.println(SEND_MSG[msgIndex]);
+      ovr_delay(DURATIONS[nextLedIndex]);
     }
   }
 }
