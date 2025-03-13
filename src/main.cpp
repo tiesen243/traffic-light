@@ -99,7 +99,7 @@ void yDelay(int ms) {
 
       if (c == 'T') {
         control_source = 1 - control_source;
-        Serial.println(control_source ? "S" : "B");
+        Serial.println(control_source ? "A" : "M");
       } else if (c == 'N') {
         resetLEDs();
         is_night_mode = 1;
