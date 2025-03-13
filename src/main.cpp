@@ -1,15 +1,19 @@
 #include "Arduino.h"
 
-const int led_red = D1;
-const int led_yellow = D2;
-const int led_green = D3;
+const int LED_RED = D1;
+const int LED_YELLOW = D2;
+const int LED_GREEN = D3;
 
-const int button_1 = D5;
-const int button_2 = D6;
-const int button_3 = D7;
+const int BUTTON_1 = D5;
+const int BUTTON_2 = D6;
+const int BUTTON_3 = D7;
 
-int mode = 3;
-int is_night_mode = 0;
+const int SERIAL_BAUD_RATE = 9600;
+const int RED_DURATION = 5000;
+const int YELLOW_DURATION = 3000;
+const int GREEN_DURATION = 10000;
+const int BLINK_INTERVAL = 1000;
+
 /*
  * mode 1: red
  * mode 2: blinking yellow
@@ -17,138 +21,132 @@ int is_night_mode = 0;
  * - day mode: red -> yellow -> green -> red
  * - night mode: blinking yellow
  */
-int control_source = 0; // 0: button, 1: serial
 
-void resetLEDs();
-void yDelay(int ms);
+static int mode = 3;
+static int is_night_mode = 0;
+static int control_source = 0;
+
+const char send_msg[9] = {'K', 'Z', 'E', 'R', 'Y', 'G', 'O', 'A', 'M'};
+const char receive_msg[6] = {'1', '2', '3', 'T', 'D', 'N'};
+
+static void ovr_delay(int delay_ms);
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(SERIAL_BAUD_RATE);
 
-  pinMode(led_red, OUTPUT);
-  pinMode(led_yellow, OUTPUT);
-  pinMode(led_green, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_YELLOW, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
 
-  pinMode(button_1, INPUT);
-  pinMode(button_2, INPUT);
-  pinMode(button_3, INPUT);
+  pinMode(BUTTON_1, INPUT);
+  pinMode(BUTTON_2, INPUT);
+  pinMode(BUTTON_3, INPUT);
 }
 
 void loop() {
   if (mode == 1) {
-    digitalWrite(led_red, HIGH);
+    digitalWrite(LED_RED, HIGH);
     Serial.println("R");
-    yDelay(10000);
+    ovr_delay(RED_DURATION);
   } else if (mode == 2) {
-    if (digitalRead(led_yellow) == HIGH) {
-      digitalWrite(led_yellow, LOW);
+    if (digitalRead(LED_YELLOW) == HIGH) {
+      digitalWrite(LED_YELLOW, LOW);
       Serial.println("O");
-      yDelay(1000);
+      ovr_delay(BLINK_INTERVAL);
     } else {
-      digitalWrite(led_yellow, HIGH);
+      digitalWrite(LED_YELLOW, HIGH);
       Serial.println("Y");
-      yDelay(1000);
+      ovr_delay(BLINK_INTERVAL);
     }
   } else if (mode == 3) {
-    if (is_night_mode) {
-      if (digitalRead(led_yellow) == HIGH) {
-        digitalWrite(led_yellow, LOW);
+    if (is_night_mode != 0) {
+      if (digitalRead(LED_YELLOW) == HIGH) {
+        digitalWrite(LED_YELLOW, LOW);
         Serial.println("O");
-        yDelay(1000);
+        ovr_delay(BLINK_INTERVAL);
       } else {
-        digitalWrite(led_yellow, HIGH);
+        digitalWrite(LED_YELLOW, HIGH);
         Serial.println("Y");
-        yDelay(1000);
+        ovr_delay(BLINK_INTERVAL);
       }
     } else {
-      if (digitalRead(led_red) == HIGH) {
-        digitalWrite(led_red, LOW);
-        digitalWrite(led_yellow, HIGH);
+      if (digitalRead(LED_RED) == HIGH) {
+        digitalWrite(LED_RED, LOW);
+        digitalWrite(LED_YELLOW, HIGH);
         Serial.println("Y");
-        yDelay(3000);
-      } else if (digitalRead(led_yellow) == HIGH) {
-        digitalWrite(led_yellow, LOW);
-        digitalWrite(led_green, HIGH);
+        ovr_delay(YELLOW_DURATION);
+      } else if (digitalRead(LED_YELLOW) == HIGH) {
+        digitalWrite(LED_YELLOW, LOW);
+        digitalWrite(LED_GREEN, HIGH);
         Serial.println("G");
-        yDelay(10000);
-      } else if (digitalRead(led_green) == HIGH) {
-        digitalWrite(led_green, LOW);
-        digitalWrite(led_red, HIGH);
+        ovr_delay(GREEN_DURATION);
+      } else if (digitalRead(LED_GREEN) == HIGH) {
+        digitalWrite(LED_GREEN, LOW);
+        digitalWrite(LED_RED, HIGH);
         Serial.println("R");
-        yDelay(5000);
+        ovr_delay(RED_DURATION);
       } else {
-        digitalWrite(led_red, HIGH);
+        digitalWrite(LED_RED, HIGH);
         Serial.println("R");
-        yDelay(5000);
+        ovr_delay(RED_DURATION);
       }
     }
   }
 }
 
-void resetLEDs() {
-  digitalWrite(led_red, LOW);
-  digitalWrite(led_yellow, LOW);
-  digitalWrite(led_green, LOW);
+static void reset_LEDs() {
+  digitalWrite(LED_RED, LOW);
+  digitalWrite(LED_YELLOW, LOW);
+  digitalWrite(LED_GREEN, LOW);
 }
 
-void yDelay(int ms) {
-  for (int i = 0; i <= ms; i++) {
-    // serial handler
-    if (Serial.available() > 0) {
-      char c = Serial.read();
+static void switch_mode(int newMode) {
+  reset_LEDs();
+  mode = newMode;
+  Serial.println(send_msg[mode - 1]);
+}
 
-      if (c == 'T') {
+void ovr_delay(int delay_ms) {
+  for (int i = 0; i <= delay_ms; i++) {
+
+    if (Serial.available() != 0) {
+      char data = (char)Serial.read();
+
+      if (data == receive_msg[3]) {
         control_source = 1 - control_source;
-        Serial.println(control_source ? "A" : "M");
-      } else if (c == 'N') {
-        resetLEDs();
-        is_night_mode = 1;
-      } else if (c == 'D') {
-        resetLEDs();
+        Serial.println(send_msg[control_source + 7]);
+      } else if (data == receive_msg[4]) {
         is_night_mode = 0;
-      }
-
-      if (c == '1' && control_source == 1) {
-        mode = 1;
-        resetLEDs();
-        Serial.println("K");
-        break;
-      } else if (c == '2' && control_source == 1) {
-        mode = 2;
-        resetLEDs();
-        Serial.println("Z");
-        break;
-      } else if (c == '3' && control_source == 1) {
-        mode = 3;
-        resetLEDs();
-        Serial.println("E");
-        break;
+        Serial.println(send_msg[is_night_mode + 5]);
+      } else if (data == receive_msg[5]) {
+        is_night_mode = 1;
+        Serial.println(send_msg[is_night_mode + 5]);
+      } else if (control_source == 1) {
+        int newMode = data - '0';
+        if (newMode >= 1 && newMode <= 3) {
+          switch_mode(newMode);
+          break;
+        }
       }
     }
 
-    // button handler
-    if (digitalRead(button_1) == LOW && control_source == 0) {
-      while (digitalRead(button_1) == LOW)
+    if (digitalRead(BUTTON_1) == LOW && control_source == 0) {
+      while (digitalRead(BUTTON_1) == LOW)
         ;
-      mode = 1;
-      resetLEDs();
-      Serial.println("K");
+      switch_mode(1);
       break;
-    } else if (digitalRead(button_2) == LOW && control_source == 0) {
-      while (digitalRead(button_2) == LOW)
+    } else if (digitalRead(BUTTON_2) == LOW && control_source == 0) {
+      while (digitalRead(BUTTON_2) == LOW)
         ;
-      mode = 2;
-      resetLEDs();
-      Serial.println("Z");
+      switch_mode(2);
       break;
-    } else if (digitalRead(button_3) == LOW && control_source == 0) {
-      while (digitalRead(button_3) == LOW)
+    } else if (digitalRead(BUTTON_3) == LOW && control_source == 0) {
+      while (digitalRead(BUTTON_3) == LOW)
         ;
-      mode = 3;
-      resetLEDs();
-      Serial.println("E");
+      switch_mode(3);
       break;
     }
+
     delay(1);
   }
 }
