@@ -1,12 +1,12 @@
 #include "Arduino.h"
 
-const int button_1 = D5;
-const int button_2 = D6;
-const int button_3 = D7;
-
 const int led_red = D1;
 const int led_yellow = D2;
 const int led_green = D3;
+
+const int button_1 = D5;
+const int button_2 = D6;
+const int button_3 = D7;
 
 int mode = 3;
 int is_night_mode = 0;
@@ -33,6 +33,7 @@ void setup() {
   pinMode(button_2, INPUT);
   pinMode(button_3, INPUT);
 }
+
 void loop() {
   if (mode == 1) {
     digitalWrite(led_red, HIGH);
