@@ -1,15 +1,10 @@
 #include "Arduino.h"
-#include "core_esp8266_features.h"
 
-const int LEDS[3] = {D1, D2, D3};
-const int BUTTONS[3] = {D5, D6, D7};
-
-const int SERIAL_BAUD_RATE = 9600;
-const int DURATIONS[] = {5000, 3000, 10000};
-const int BLINK_INTERVAL = 1000;
-const int MODE_OFFSET = 1;
-const int CONTROL_SOURCE_OFFSET = 7;
-const int NIGHT_MODE_OFFSET = 5;
+const int LEDS[3] = {D1, D2, D3};                   // red, yellow, green
+const int BUTTONS[3] = {D5, D6, D7};                // mode 1, mode 2, mode 3
+const int DURATIONS[4] = {5000, 3000, 10000, 1000}; // red, yellow, green, blink
+const char SEND_MSG[9] = {'K', 'Z', 'E', 'R', 'Y', 'G', 'O', 'M', 'A'};
+const char RECEIVE_MSG[7] = {'1', '2', '3', 'T', 'D', 'N', 'I'};
 
 /*
  * mode 1: red
@@ -22,13 +17,10 @@ static int mode = 3;
 static int is_night_mode = 0;
 static int control_source = 0;
 
-const char send_msg[9] = {'K', 'Z', 'E', 'R', 'Y', 'G', 'O', 'M', 'A'};
-const char receive_msg[7] = {'1', '2', '3', 'T', 'D', 'N', 'I'};
-
 static void ovr_delay(int delay_ms);
 
 void setup() {
-  Serial.begin(SERIAL_BAUD_RATE);
+  Serial.begin(9600);
 
   for (int i = 0; i < 3; i++) {
     pinMode(LEDS[i], OUTPUT);
@@ -47,32 +39,32 @@ void loop() {
     int yellowState = digitalRead(LEDS[1]);
     digitalWrite(LEDS[1], yellowState == 0);
     Serial.println(yellowState == HIGH ? "O" : "Y");
-    ovr_delay(BLINK_INTERVAL);
+    ovr_delay(DURATIONS[3]);
   } else if (mode == 3) {
     if (is_night_mode != 0) {
       int yellowState = digitalRead(LEDS[1]);
       digitalWrite(LEDS[1], yellowState == 0);
       Serial.println(yellowState == HIGH ? "O" : "Y");
-      ovr_delay(BLINK_INTERVAL);
+      ovr_delay(DURATIONS[3]);
     } else {
       if (digitalRead(LEDS[0]) == HIGH) {
         digitalWrite(LEDS[0], LOW);
         digitalWrite(LEDS[1], HIGH);
-        Serial.println(send_msg[4]);
+        Serial.println(SEND_MSG[4]);
         ovr_delay(DURATIONS[1]);
       } else if (digitalRead(LEDS[1]) == HIGH) {
         digitalWrite(LEDS[1], LOW);
         digitalWrite(LEDS[2], HIGH);
-        Serial.println(send_msg[5]);
+        Serial.println(SEND_MSG[5]);
         ovr_delay(DURATIONS[2]);
       } else if (digitalRead(LEDS[2]) == HIGH) {
         digitalWrite(LEDS[2], LOW);
         digitalWrite(LEDS[0], HIGH);
-        Serial.println(send_msg[3]);
+        Serial.println(SEND_MSG[3]);
         ovr_delay(DURATIONS[0]);
       } else {
         digitalWrite(LEDS[0], HIGH);
-        Serial.println(send_msg[2]);
+        Serial.println(SEND_MSG[2]);
         ovr_delay(DURATIONS[0]);
       }
     }
@@ -87,7 +79,7 @@ static void reset_LEDs() {
 static void switch_mode(int newMode) {
   reset_LEDs();
   mode = newMode;
-  Serial.println(send_msg[newMode - MODE_OFFSET]);
+  Serial.println(SEND_MSG[newMode - 1]);
 }
 
 void ovr_delay(int delay_ms) {
@@ -96,25 +88,23 @@ void ovr_delay(int delay_ms) {
     if (Serial.available() != 0) {
       char data = (char)Serial.read();
 
-      if (data == receive_msg[3]) {
+      if (data == RECEIVE_MSG[3]) {
         control_source = 1 - control_source;
-        Serial.println(send_msg[control_source + CONTROL_SOURCE_OFFSET]);
-      } else if (data == receive_msg[NIGHT_MODE_OFFSET - 1]) {
+        Serial.println(SEND_MSG[control_source + 7]);
+      } else if (data == RECEIVE_MSG[4]) {
         reset_LEDs();
         is_night_mode = 0;
-        Serial.println(send_msg[is_night_mode + NIGHT_MODE_OFFSET]);
         if (mode == 3)
           i = delay_ms + 1;
-      } else if (data == receive_msg[NIGHT_MODE_OFFSET]) {
+      } else if (data == RECEIVE_MSG[5]) {
         reset_LEDs();
         is_night_mode = 1;
-        Serial.println(send_msg[is_night_mode + NIGHT_MODE_OFFSET]);
         if (mode == 3)
           i = delay_ms + 1;
-      } else if (data == receive_msg[6]) {
-        Serial.println(send_msg[mode - MODE_OFFSET]);
+      } else if (data == RECEIVE_MSG[6]) {
+        Serial.println(SEND_MSG[mode - 1]);
         delay(100);
-        Serial.println(send_msg[control_source + CONTROL_SOURCE_OFFSET]);
+        Serial.println(SEND_MSG[control_source + 7]);
         delay(100);
       } else if (control_source == 1) {
         int newMode = data - '0';
