@@ -40,7 +40,7 @@ void loop() {
     Serial.println("R");
     yDelay(10000);
   } else if (mode == 2) {
-    if (digitalRead(led_yellow) == 1) {
+    if (digitalRead(led_yellow) == HIGH) {
       digitalWrite(led_yellow, LOW);
       Serial.println("O");
       yDelay(1000);
@@ -51,7 +51,7 @@ void loop() {
     }
   } else if (mode == 3) {
     if (is_night_mode) {
-      if (digitalRead(led_yellow) == 1) {
+      if (digitalRead(led_yellow) == HIGH) {
         digitalWrite(led_yellow, LOW);
         Serial.println("O");
         yDelay(1000);
@@ -61,17 +61,17 @@ void loop() {
         yDelay(1000);
       }
     } else {
-      if (digitalRead(led_red) == 1) {
+      if (digitalRead(led_red) == HIGH) {
         digitalWrite(led_red, LOW);
         digitalWrite(led_yellow, HIGH);
         Serial.println("Y");
         yDelay(3000);
-      } else if (digitalRead(led_yellow) == 1) {
+      } else if (digitalRead(led_yellow) == HIGH) {
         digitalWrite(led_yellow, LOW);
         digitalWrite(led_green, HIGH);
         Serial.println("G");
         yDelay(10000);
-      } else if (digitalRead(led_green) == 1) {
+      } else if (digitalRead(led_green) == HIGH) {
         digitalWrite(led_green, LOW);
         digitalWrite(led_red, HIGH);
         Serial.println("R");
