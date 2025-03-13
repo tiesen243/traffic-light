@@ -1,8 +1,8 @@
 #include "Arduino.h"
 
-const int LEDS[3] = {D1, D2, D3};                   // red, yellow, green
-const int BUTTONS[3] = {D5, D6, D7};                // mode 1, mode 2, mode 3
-const int DURATIONS[4] = {5000, 3000, 10000, 1000}; // red, yellow, green, blink
+const int LEDS[3] = {D1, D2, D3};       // red, yellow, green
+const int BUTTONS[3] = {D5, D6, D7};    // mode 1, mode 2, mode 3
+const int DURATIONS[4] = {5, 3, 10, 1}; // red, yellow, green, blink
 const char SEND_MSG[9] = {'K', 'Z', 'E', 'R', 'Y', 'G', 'O', 'M', 'A'};
 const char RECEIVE_MSG[7] = {'1', '2', '3', 'T', 'D', 'N', 'I'};
 
@@ -79,7 +79,7 @@ static void switch_mode(int newMode) {
 }
 
 void ovr_delay(int delay_ms) {
-  for (int i = 0; i <= delay_ms; i++) {
+  for (int i = 0; i <= delay_ms * 10; i++) {
     // Handle serial input
     if (Serial.available() != 0) {
       char data = (char)Serial.read();
@@ -106,7 +106,7 @@ void ovr_delay(int delay_ms) {
         int newMode = data - '0';
         if (newMode >= 1 && newMode <= 3 && newMode != mode) {
           switch_mode(newMode);
-          i = delay_ms + 1;
+          i = delay_ms * 10 + 1;
         }
       }
     }
@@ -118,11 +118,11 @@ void ovr_delay(int delay_ms) {
         while (digitalRead(BUTTONS[j]) == LOW)
           ;
         switch_mode(j + 1);
-        i = delay_ms + 1;
+        i = delay_ms * 10 + 1;
         break;
       }
     }
 
-    delay(1);
+    delay(100);
   }
 }
