@@ -118,7 +118,7 @@ void ovr_delay(int delay_ms) {
         delay(100);
       } else if (control_source == 1) {
         int newMode = data - '0';
-        if (newMode >= 1 && newMode <= 3) {
+        if (newMode >= 1 && newMode <= 3 && newMode != mode) {
           switch_mode(newMode);
           i = delay_ms + 1;
         }
@@ -127,7 +127,8 @@ void ovr_delay(int delay_ms) {
 
     // Handle button input
     for (int j = 0; j < 3; j++) {
-      if (digitalRead(BUTTONS[j]) == LOW && control_source == 0) {
+      if (digitalRead(BUTTONS[j]) == LOW && mode != j + 1 &&
+          control_source == 0) {
         while (digitalRead(BUTTONS[j]) == LOW)
           ;
         switch_mode(j + 1);
