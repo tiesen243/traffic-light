@@ -13,11 +13,11 @@ const char RECEIVE_MSG[7] = {'1', '2', '3', 'T', 'D', 'N', 'I'};
  * - day mode: red -> yellow -> green -> red
  * - night mode: blinking yellow
  */
-static int mode = 3;
-static int is_night_mode = 0;
-static int control_source = 0;
+int mode = 3;
+int is_night_mode = 0;
+int control_source = 0;
 
-static void ovr_delay(int delay_ms);
+void ovr_delay(int delay_ms);
 
 void setup() {
   Serial.begin(9600);
@@ -47,26 +47,22 @@ void loop() {
       Serial.println(yellowState == HIGH ? "O" : "Y");
       ovr_delay(DURATIONS[3]);
     } else {
-      int activeLedIndex = -1;
-      for (int i = 0; i < 3; i++)
-        if (digitalRead(LEDS[i]) == HIGH) {
-          activeLedIndex = i;
-          break;
-        }
-
-      int nextLedIndex = (activeLedIndex == -1) ? 0 : (activeLedIndex + 1) % 3;
-
-      if (activeLedIndex != -1)
-        digitalWrite(LEDS[activeLedIndex], LOW);
-
-      digitalWrite(LEDS[nextLedIndex], HIGH);
-
-      int msgIndex = nextLedIndex + 3;
-      if (activeLedIndex == -1)
-        msgIndex = 2;
-
-      Serial.println(SEND_MSG[msgIndex]);
-      ovr_delay(DURATIONS[nextLedIndex]);
+      if (digitalRead(LEDS[0]) == HIGH) {
+        digitalWrite(LEDS[0], LOW);
+        digitalWrite(LEDS[1], HIGH);
+        Serial.println("Y");
+        ovr_delay(DURATIONS[1]);
+      } else if (digitalRead(LEDS[1]) == HIGH) {
+        digitalWrite(LEDS[1], LOW);
+        digitalWrite(LEDS[2], HIGH);
+        Serial.println("G");
+        ovr_delay(DURATIONS[2]);
+      } else {
+        digitalWrite(LEDS[2], LOW);
+        digitalWrite(LEDS[0], HIGH);
+        Serial.println("R");
+        ovr_delay(DURATIONS[0]);
+      }
     }
   }
 }
