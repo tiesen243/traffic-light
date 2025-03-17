@@ -1,20 +1,28 @@
 #include "Arduino.h"
 
-const int LEDS[3] = {D1, D2, D3};       // red, yellow, green
-const int BUTTONS[3] = {D5, D6, D7};    // mode 1, mode 2, mode 3
+const int LEDS[3] = {D2, D1, D0};       // red, yellow, green
+const int BUTTONS[3] = {D5, D4, D3};    // mode 1, mode 2, mode 3
 const int DURATIONS[4] = {5, 3, 10, 1}; // red, yellow, green, blink
-const char SEND_MSG[9] = {'K', 'Z', 'E', 'R', 'Y', 'G', 'O', 'M', 'A'};
-const char RECEIVE_MSG[7] = {'1', '2', '3', 'T', 'D', 'N', 'I'};
 
-/*
- * mode 1: red
- * mode 2: blinking yellow
- * mode 3:
- * - day mode: red -> yellow -> green -> red
- * - night mode: blinking yellow
+const char SEND_MSGS[11] = {'1', '2', '3', 'M', 'A', 'R',
+                            'O', 'Y', 'G', 'E', 'S'};
+const char RECEIVE_MSGS[5] = {'T', 'D', 'N', 'I', 'S'};
+int durations[4] = {5, 3, 10, 1}; /* Red, yellow, green, blink */
+
+/* Mode
+ * - 1: Ony red led
+ * - 2: Blink yellow led 1s
+ * - 3:
+ *   + Day mode: 5s red -> 3s yellow -> 10s green -> loop
+ *   + Night mode: blink yellow led 1s
  */
 int mode = 3;
 int is_night_mode = 0;
+
+/* Control mode
+ * - 0: Manual mode
+ * - 1: Auto mode
+ */
 int control_source = 0;
 
 void ovr_delay(int delay_ms);
@@ -33,36 +41,29 @@ void setup() {
 void loop() {
   if (mode == 1) {
     digitalWrite(LEDS[0], HIGH);
-    Serial.println("R");
+    Serial.println(SEND_MSGS[5]);
     ovr_delay(DURATIONS[0]);
-  } else if (mode == 2) {
+  } else if (mode == 2 || (mode == 3 && is_night_mode == 1)) {
     int yellowState = digitalRead(LEDS[1]);
     digitalWrite(LEDS[1], yellowState == 0);
-    Serial.println(yellowState == HIGH ? "O" : "Y");
+    Serial.println(SEND_MSGS[6 + yellowState]);
     ovr_delay(DURATIONS[3]);
   } else if (mode == 3) {
-    if (is_night_mode != 0) {
-      int yellowState = digitalRead(LEDS[1]);
-      digitalWrite(LEDS[1], yellowState == 0);
-      Serial.println(yellowState == HIGH ? "O" : "Y");
-      ovr_delay(DURATIONS[3]);
+    if (digitalRead(LEDS[0]) == HIGH) {
+      digitalWrite(LEDS[0], LOW);
+      digitalWrite(LEDS[1], HIGH);
+      Serial.println(SEND_MSGS[7]);
+      ovr_delay(DURATIONS[1]);
+    } else if (digitalRead(LEDS[1]) == HIGH) {
+      digitalWrite(LEDS[1], LOW);
+      digitalWrite(LEDS[2], HIGH);
+      Serial.println(SEND_MSGS[8]);
+      ovr_delay(DURATIONS[2]);
     } else {
-      if (digitalRead(LEDS[0]) == HIGH) {
-        digitalWrite(LEDS[0], LOW);
-        digitalWrite(LEDS[1], HIGH);
-        Serial.println("Y");
-        ovr_delay(DURATIONS[1]);
-      } else if (digitalRead(LEDS[1]) == HIGH) {
-        digitalWrite(LEDS[1], LOW);
-        digitalWrite(LEDS[2], HIGH);
-        Serial.println("G");
-        ovr_delay(DURATIONS[2]);
-      } else {
-        digitalWrite(LEDS[2], LOW);
-        digitalWrite(LEDS[0], HIGH);
-        Serial.println("R");
-        ovr_delay(DURATIONS[0]);
-      }
+      digitalWrite(LEDS[2], LOW);
+      digitalWrite(LEDS[0], HIGH);
+      Serial.println(SEND_MSGS[5]);
+      ovr_delay(DURATIONS[0]);
     }
   }
 }
@@ -75,7 +76,7 @@ static void reset_LEDs() {
 static void switch_mode(int newMode) {
   reset_LEDs();
   mode = newMode;
-  Serial.println(SEND_MSG[newMode - 1]);
+  Serial.println(SEND_MSGS[newMode - 1]);
 }
 
 void ovr_delay(int delay_ms) {
@@ -84,29 +85,41 @@ void ovr_delay(int delay_ms) {
     if (Serial.available() != 0) {
       char data = (char)Serial.read();
 
-      if (data == RECEIVE_MSG[3]) {
+      if (data == RECEIVE_MSGS[0]) {
+        // Toggle control source
         control_source = 1 - control_source;
-        Serial.println(SEND_MSG[control_source + 7]);
-      } else if (data == RECEIVE_MSG[4]) {
+        Serial.println(SEND_MSGS[control_source + 3]);
+      } else if (data == RECEIVE_MSGS[1]) {
+        // Switch to day mode
         reset_LEDs();
         is_night_mode = 0;
         if (mode == 3)
-          i = delay_ms + 1;
-      } else if (data == RECEIVE_MSG[5]) {
+          return;
+      } else if (data == RECEIVE_MSGS[2]) {
+        // Switch to night mode
         reset_LEDs();
         is_night_mode = 1;
         if (mode == 3)
-          i = delay_ms + 1;
-      } else if (data == RECEIVE_MSG[6]) {
-        Serial.println(SEND_MSG[mode - 1]);
+          return;
+      } else if (data == RECEIVE_MSGS[3]) {
+        // Send current mode and control source
+        Serial.println(SEND_MSGS[mode - 1]);
         delay(100);
-        Serial.println(SEND_MSG[control_source + 7]);
+        Serial.println(SEND_MSGS[control_source + 3]);
         delay(100);
+      } else if (data == RECEIVE_MSGS[4]) {
+        // Receive new durations like
+        // SRRYYGG:
+        // S: set cmd
+        // RR: red duration (2 digits)
+        // YY: yellow duration (2 digits)
+        // GG: green duration (2 digits)
       } else if (control_source == 1) {
+        // Change mode
         int newMode = data - '0';
         if (newMode >= 1 && newMode <= 3 && newMode != mode) {
           switch_mode(newMode);
-          i = delay_ms * 10 + 1;
+          return;
         }
       }
     }
@@ -118,8 +131,7 @@ void ovr_delay(int delay_ms) {
         while (digitalRead(BUTTONS[j]) == LOW)
           ;
         switch_mode(j + 1);
-        i = delay_ms * 10 + 1;
-        break;
+        return;
       }
     }
 
